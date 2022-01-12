@@ -1389,6 +1389,7 @@ importers:
       '@types/jest': '*'
       '@types/node': 16.*.*
       '@types/pg': '*'
+      '@types/pg-format': 1.0.2
       '@typescript-eslint/eslint-plugin': 5.6.0
       '@typescript-eslint/parser': 5.6.0
       actionhero: 28.1.4
@@ -4512,6 +4513,10 @@ packages:
 
   /@types/parse-json/4.0.0:
     resolution: {integrity: sha512-//oorEZjL6sbPcKUaCdIGlIUeH26mgzimjBB77G6XRgnDl/L5wOnpyBGRe/Mmf5CVW3PwEBE1NjiMZ/ssFh4wA==}
+    dev: true
+
+  /@types/pg-format/1.0.2:
+    resolution: {integrity: sha512-D3MEO6u3BObw3G4Xewjdx05MF5v/fiog78CedtrXe8BhONM8GvUz2dPfLWtI0BPRBoRd6anPHXe+sbrPReZouQ==}
     dev: true
 
   /@types/pg/8.6.4:
@@ -15243,7 +15248,7 @@ packages:
       '@types/jest': 27.4.0
       bs-logger: 0.2.6
       fast-json-stable-stringify: 2.1.0
-      jest: 27.4.5_ts-node@10.4.0
+      jest: 27.4.5
       jest-util: 27.4.2
       json5: 2.2.0
       lodash.memoize: 4.1.2
