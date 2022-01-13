@@ -223,14 +223,13 @@ export class ScheduleEdit extends AuthenticatedAction {
 
     if (params.options) await schedule.setOptions(params.options);
     if (params.filters) await schedule.setFilters(params.filters);
-    if (params.refreshEnabled)
-      await schedule.update({ refreshEnabled: params.refreshEnabled });
 
     await schedule.update({
       state: params.state,
       name: params.name,
       confirmRecords: params.confirmRecords,
       incremental: params.incremental,
+      refreshEnabled: params.refreshEnabled,
     });
 
     await ConfigWriter.run();
