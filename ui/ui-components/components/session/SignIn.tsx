@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect, Fragment, useCallback } from "react";
 import { useRouter } from "next/router";
 import { Form, Row, Col, Button, Modal, ButtonGroup } from "react-bootstrap";
 import LoadingButton from "../LoadingButton";
@@ -33,23 +33,27 @@ export default function SignInForm(props) {
     useState<Models.OAuthRequestType>(null);
   const { nextPage, requestId } = router.query;
 
-  const createSession = async (
-    arg: Record<string, any>,
-    type: "password" | "requestId"
-  ) => {
-    const response: Actions.SessionCreate = await execApi("post", `/session`, {
-      email: arg.email,
-      requestId: type === "requestId" ? requestId : undefined,
-      password: type === "password" ? arg.password : undefined,
-    });
-    if (response?.teamMember) {
-      window.localStorage.setItem("session:csrfToken", response.csrfToken);
-      sessionHandler.set(response.teamMember);
-      return response?.teamMember;
-    }
-  };
+  const createSession = useCallback(
+    async (arg: Record<string, any>, type: "password" | "requestId") => {
+      const response: Actions.SessionCreate = await execApi(
+        "post",
+        `/session`,
+        {
+          email: arg.email,
+          requestId: type === "requestId" ? requestId : undefined,
+          password: type === "password" ? arg.password : undefined,
+        }
+      );
+      if (response?.teamMember) {
+        window.localStorage.setItem("session:csrfToken", response.csrfToken);
+        sessionHandler.set(response.teamMember);
+        return response?.teamMember;
+      }
+    },
+    [execApi, requestId, sessionHandler]
+  );
 
-  const loadOauthOptions = async () => {
+  const loadOauthOptions = useCallback(async () => {
     setLoadingOauthProviders(true);
     const response: Actions.OAuthListProviders = await execApi(
       "get",
@@ -59,7 +63,7 @@ export default function SignInForm(props) {
       setProviders(response.providers);
     }
     setLoadingOauthProviders(false);
-  };
+  }, [execApi]);
 
   const startOauthLogin = async (provider: string, type: string) => {
     setLoadingOAuth(true);
@@ -75,7 +79,48 @@ export default function SignInForm(props) {
     }
   };
 
-  const loadOAuthRequest = async () => {
+  const getSetupSteps = useCallback(async () => {
+    const { setupSteps }: Actions.SetupStepsList = await execApi(
+      "get",
+      `/setupSteps`
+    );
+    return { setupSteps };
+  }, [execApi]);
+
+  const onSubmit = useCallback(
+    async (
+      arg: Models.OAuthRequestType["identities"][number] | Record<string, any>,
+      type: "password" | "requestId"
+    ) => {
+      type === "password" ? setLoadingEmail(true) : setLoadingOAuth(true);
+      const teamMember = await createSession(arg, type);
+      type === "password" ? setLoadingEmail(false) : setLoadingOAuth(false);
+      if (teamMember) {
+        successHandler.set({
+          message: `Welcome Back${
+            teamMember.firstName ? `, ${teamMember.firstName}` : ""
+          }!`,
+        });
+        if (nextPage) {
+          router.push(nextPage.toString());
+        } else {
+          const { setupSteps } = await getSetupSteps();
+          const isSetupComplete = setupSteps.every((step) => step.complete);
+          if (isSetupComplete) {
+            router.push("/dashboard");
+          } else {
+            router.push("/setup");
+          }
+        }
+      } else {
+        setShowModal(false);
+        setConfirmingOauthRequest(false);
+      }
+    },
+    [createSession, getSetupSteps, nextPage, router, successHandler]
+  );
+
+  const loadOAuthRequest = useCallback(async () => {
     if (requestId) {
       const response: Actions.OAuthClientView = await execApi(
         "get",
@@ -99,51 +144,13 @@ export default function SignInForm(props) {
     } else {
       setConfirmingOauthRequest(false);
     }
-  };
-
-  const onSubmit = async (
-    arg: Models.OAuthRequestType["identities"][number] | Record<string, any>,
-    type: "password" | "requestId"
-  ) => {
-    type === "password" ? setLoadingEmail(true) : setLoadingOAuth(true);
-    const teamMember = await createSession(arg, type);
-    type === "password" ? setLoadingEmail(false) : setLoadingOAuth(false);
-    if (teamMember) {
-      successHandler.set({
-        message: `Welcome Back${
-          teamMember.firstName ? `, ${teamMember.firstName}` : ""
-        }!`,
-      });
-      if (nextPage) {
-        router.push(nextPage.toString());
-      } else {
-        const { setupSteps } = await getSetupSteps();
-        const isSetupComplete = setupSteps.every((step) => step.complete);
-        if (isSetupComplete) {
-          router.push("/dashboard");
-        } else {
-          router.push("/setup");
-        }
-      }
-    } else {
-      setShowModal(false);
-      setConfirmingOauthRequest(false);
-    }
-  };
-
-  const getSetupSteps = async () => {
-    const { setupSteps }: Actions.SetupStepsList = await execApi(
-      "get",
-      `/setupSteps`
-    );
-    return { setupSteps };
-  };
+  }, [errorHandler, execApi, onSubmit, requestId, router]);
 
   useEffect(() => {
     setConfirmingOauthRequest(true);
     loadOauthOptions();
     loadOAuthRequest();
-  }, []);
+  }, [loadOAuthRequest, loadOauthOptions]);
 
   return (
     <>
@@ -170,7 +177,7 @@ export default function SignInForm(props) {
                       name="email"
                       type="email"
                       placeholder="Email Address"
-                      ref={register}
+                      {...register("email")}
                     />
                     <Form.Control.Feedback type="invalid">
                       Email is required
@@ -184,7 +191,7 @@ export default function SignInForm(props) {
                       name="password"
                       type="password"
                       placeholder="Password"
-                      ref={register}
+                      {...register("password")}
                     />
                     <Form.Control.Feedback type="invalid">
                       A password is required

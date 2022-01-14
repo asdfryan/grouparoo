@@ -55,7 +55,7 @@ export default function Page(props) {
       }
       setShouldRender(true);
     }
-  }, [navigationMode, props]);
+  }, [navigationMode, props, router]);
 
   if (shouldRender === false) {
     return <Loader />;
