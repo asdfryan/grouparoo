@@ -48,7 +48,7 @@ export default function Page(props) {
       </Row>
 
       <br />
-      <h2>Runs</h2>
+      <h2 data-test-id="dashboardRuns">Runs</h2>
       <RunningRuns statusHandler={statusHandler} />
       <br />
       <ScheduleRuns statusHandler={statusHandler} />

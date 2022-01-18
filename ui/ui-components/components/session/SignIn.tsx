@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment, useCallback } from "react";
+import { useState, useEffect, Fragment, useCallback, useMemo } from "react";
 import { useRouter } from "next/router";
 import { Form, Row, Col, Button, Modal, ButtonGroup } from "react-bootstrap";
 import LoadingButton from "../LoadingButton";
@@ -20,7 +20,10 @@ export default function SignInForm(props) {
     successHandler: SuccessHandler;
     sessionHandler: SessionHandler;
   } = props;
-  const { execApi } = UseApi(props, errorHandler);
+  const { execApi } = useMemo(
+    () => UseApi(props, errorHandler),
+    [errorHandler, props]
+  );
   const { handleSubmit, register } = useForm();
   const router = useRouter();
   const [loadingEmail, setLoadingEmail] = useState(false);
@@ -65,19 +68,22 @@ export default function SignInForm(props) {
     setLoadingOauthProviders(false);
   }, [execApi]);
 
-  const startOauthLogin = async (provider: string, type: string) => {
-    setLoadingOAuth(true);
-    const response: Actions.OAuthClientStart = await execApi(
-      "post",
-      `/oauth/${provider}/client/start`,
-      { type }
-    );
-    if (response.location) {
-      window.location.assign(response.location);
-    } else {
-      setLoadingOAuth(false);
-    }
-  };
+  const startOauthLogin = useCallback(
+    async (provider: string, type: string) => {
+      setLoadingOAuth(true);
+      const response: Actions.OAuthClientStart = await execApi(
+        "post",
+        `/oauth/${provider}/client/start`,
+        { type }
+      );
+      if (response.location) {
+        window.location.assign(response.location);
+      } else {
+        setLoadingOAuth(false);
+      }
+    },
+    [execApi]
+  );
 
   const getSetupSteps = useCallback(async () => {
     const { setupSteps }: Actions.SetupStepsList = await execApi(
@@ -122,6 +128,7 @@ export default function SignInForm(props) {
 
   const loadOAuthRequest = useCallback(async () => {
     if (requestId) {
+      setConfirmingOauthRequest(true);
       const response: Actions.OAuthClientView = await execApi(
         "get",
         `/oauth/client/request/${requestId}/view`
@@ -147,7 +154,6 @@ export default function SignInForm(props) {
   }, [errorHandler, execApi, onSubmit, requestId, router]);
 
   useEffect(() => {
-    setConfirmingOauthRequest(true);
     loadOauthOptions();
     loadOAuthRequest();
   }, [loadOAuthRequest, loadOauthOptions]);

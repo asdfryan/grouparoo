@@ -1,5 +1,5 @@
 import Head from "next/head";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { UseApi } from "../hooks/useApi";
 import { Actions, Models } from "../utils/apiData";
 import { Row, Col, ProgressBar, Alert } from "react-bootstrap";
@@ -16,12 +16,15 @@ export default function Page(props) {
     errorHandler: ErrorHandler;
     setupStepHandler: SetupStepHandler;
   } = props;
-  const { execApi } = UseApi(props, errorHandler);
+  const { execApi } = useMemo(
+    () => UseApi(props, errorHandler),
+    [errorHandler, props]
+  );
   const [setupSteps, setSetupSteps] = useState<Models.SetupStepType[]>([]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const completeStepsCount = setupSteps.filter(
     (step) => step.complete || step.skipped
@@ -61,11 +64,19 @@ export default function Page(props) {
         <Alert variant="success">
           You’ve finished the Setup Guide! 🎉 <br />
           If you have additional questions, please read our{" "}
-          <a target="_blank" href="https://www.grouparoo.com/docs">
+          <a
+            target="_blank"
+            href="https://www.grouparoo.com/docs"
+            rel="noreferrer"
+          >
             Docs
           </a>{" "}
           or ask our{" "}
-          <a target="_blank" href="https://www.grouparoo.com/docs/community">
+          <a
+            target="_blank"
+            href="https://www.grouparoo.com/docs/community"
+            rel="noreferrer"
+          >
             Community
           </a>
           <br />
