@@ -105,7 +105,7 @@ export class Schedule extends LoggedModel<Schedule> {
   locked: string;
 
   @AllowNull(false)
-  @Default(true)
+  @Default(false)
   @Column
   incremental: boolean;
 
@@ -209,6 +209,7 @@ export class Schedule extends LoggedModel<Schedule> {
   async apiData() {
     const options = await this.getOptions(null);
     const filters = await this.getFilters();
+    const { pluginConnection } = await this.getPlugin();
 
     return {
       id: this.id,
@@ -220,6 +221,7 @@ export class Schedule extends LoggedModel<Schedule> {
       refreshEnabled: this.refreshEnabled,
       locked: this.locked,
       confirmRecords: this.confirmRecords,
+      supportIncrementalSchedule: pluginConnection.supportIncrementalSchedule,
       options,
       filters,
       recurringFrequency: this.recurringFrequency,
@@ -312,6 +314,40 @@ export class Schedule extends LoggedModel<Schedule> {
     return instance;
   }
 
+  @BeforeValidate
+  static async ensureName(instance: Schedule) {
+    if (!instance.name) {
+      const source = await Source.findById(instance.sourceId);
+      instance.name = `${source.name} schedule`;
+    }
+  }
+
+  @BeforeCreate
+  static async ensureSourceCanUseSchedule(instance: Schedule) {
+    const source = await Source.findById(instance.sourceId);
+    if (source.state !== "ready") throw new Error("source is not ready");
+
+    const scheduleAvailable = await source.scheduleAvailable();
+    if (!scheduleAvailable) {
+      throw new Error(
+        `source ${source.name} (${instance.sourceId}) cannot have a schedule`
+      );
+    }
+  }
+
+  @BeforeCreate
+  static async ensureOnePerSource(instance: Schedule) {
+    const existingCount = await Schedule.scope(null).count({
+      where: {
+        sourceId: instance.sourceId,
+      },
+    });
+
+    if (existingCount > 0) {
+      throw new Error(`source ${instance.sourceId} already has a schedule`);
+    }
+  }
+
   @BeforeSave
   static async ensureSourceOptions(instance: Schedule) {
     const source = await Source.findById(instance.sourceId);
@@ -330,55 +366,6 @@ export class Schedule extends LoggedModel<Schedule> {
   @BeforeSave
   static async noUpdateIfLocked(instance: Schedule) {
     await LockableHelper.beforeSave(instance, ["state"]);
-  }
-
-  @BeforeUpdate
-  static async checkRecurringFrequency(instance: Schedule) {
-    // we cannot use the @Min validator as null is also allowed
-    if (instance.recurring) {
-      if (
-        !instance.recurringFrequency ||
-        instance.recurringFrequency < 1000 * 60
-      ) {
-        throw new Error(
-          "recurring frequency is required to be one minute or greater"
-        );
-      }
-    }
-  }
-
-  @BeforeValidate
-  static async ensureName(instance: Schedule) {
-    if (!instance.name) {
-      const source = await Source.findById(instance.sourceId);
-      instance.name = `${source.name} schedule`;
-    }
-  }
-
-  @BeforeCreate
-  static async ensureOnePerSource(instance: Schedule) {
-    const existingCount = await Schedule.scope(null).count({
-      where: {
-        sourceId: instance.sourceId,
-      },
-    });
-
-    if (existingCount > 0) {
-      throw new Error(`source ${instance.sourceId} already has a schedule`);
-    }
-  }
-
-  @BeforeCreate
-  static async ensureSourceCanUseSchedule(instance: Schedule) {
-    const source = await Source.findById(instance.sourceId);
-    if (source.state !== "ready") throw new Error("source is not ready");
-
-    const scheduleAvailable = await source.scheduleAvailable();
-    if (!scheduleAvailable) {
-      throw new Error(
-        `source ${source.name} (${instance.sourceId}) cannot have a schedule`
-      );
-    }
   }
 
   @BeforeSave
@@ -402,6 +389,31 @@ export class Schedule extends LoggedModel<Schedule> {
   static async runAfterSave(instance: Schedule) {
     const shouldRun = await instance.shouldRun();
     if (shouldRun) await instance.enqueueRun();
+  }
+
+  @BeforeUpdate
+  static async checkRecurringFrequency(instance: Schedule) {
+    // we cannot use the @Min validator as null is also allowed
+    if (instance.recurring) {
+      if (
+        !instance.recurringFrequency ||
+        instance.recurringFrequency < 1000 * 60
+      ) {
+        throw new Error(
+          "recurring frequency is required to be one minute or greater"
+        );
+      }
+    }
+  }
+
+  @BeforeUpdate
+  static async checkIncremental(instance: Schedule) {
+    const { pluginConnection } = await instance.getPlugin();
+    if (instance.incremental && !pluginConnection.supportIncrementalSchedule) {
+      throw new Error(
+        `${pluginConnection.name} does not support incremental schedules`
+      );
+    }
   }
 
   @BeforeDestroy
