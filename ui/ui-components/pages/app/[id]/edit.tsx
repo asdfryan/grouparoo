@@ -1,6 +1,6 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect, Fragment, useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Row, Col, Form, Badge, Alert } from "react-bootstrap";
 import { Typeahead } from "react-bootstrap-typeahead";
@@ -54,6 +54,28 @@ export default function Page(props) {
   const [ranTest, setRanTest] = useState(false);
   const { id } = router.query;
 
+  const loadOAuthRequest = useCallback(
+    async (requestId: string) => {
+      if (requestId) {
+        const response: Actions.OAuthClientView = await execApi(
+          "get",
+          `/oauth/client/request/${requestId}/view`
+        );
+
+        if (response.oAuthRequest) {
+          setValue(
+            `options.${response.oAuthRequest.appOption}`,
+            response.oAuthRequest.token
+          );
+          successHandler.set({
+            message: `Loaded app options from ${response.oAuthRequest.provider}`,
+          });
+        }
+      }
+    },
+    [execApi, setValue, successHandler]
+  );
+
   useEffect(() => {
     if (!oAuthPopup) return;
 
@@ -76,7 +98,7 @@ export default function Page(props) {
       clearInterval(interval);
       globalThis.removeEventListener("message", onMessage);
     };
-  }, [oAuthPopup]);
+  }, [loadOAuthRequest, oAuthPopup]);
 
   async function edit(appData: Models.AppType) {
     const state = app.state === "ready" ? undefined : "ready";
@@ -154,25 +176,6 @@ export default function Page(props) {
     }
   };
 
-  const loadOAuthRequest = async (requestId: string) => {
-    if (requestId) {
-      const response: Actions.OAuthClientView = await execApi(
-        "get",
-        `/oauth/client/request/${requestId}/view`
-      );
-
-      if (response.oAuthRequest) {
-        setValue(
-          `options.${response.oAuthRequest.appOption}`,
-          response.oAuthRequest.token
-        );
-        successHandler.set({
-          message: `Loaded app options from ${response.oAuthRequest.provider}`,
-        });
-      }
-    }
-  };
-
   return (
     <>
       <Head>
@@ -204,7 +207,7 @@ export default function Page(props) {
                   name="name"
                   placeholder="Name"
                   disabled={loading}
-                  ref={register}
+                  {...register("name")}
                 />
                 <Form.Control.Feedback type="invalid">
                   Name is required
@@ -244,6 +247,7 @@ export default function Page(props) {
                           <a
                             target="_blank"
                             href="https://www.grouparoo.com/docs/support/secrets"
+                            rel="noreferrer"
                           >
                             See the docs
                           </a>{" "}
@@ -271,7 +275,7 @@ export default function Page(props) {
                                   <Controller
                                     control={control}
                                     name={`options.${opt.key}`}
-                                    render={({ onChange }) => {
+                                    render={({ field: { onChange } }) => {
                                       return (
                                         <Typeahead
                                           id="typeahead"
@@ -341,7 +345,7 @@ export default function Page(props) {
                                     required={opt.required}
                                     disabled={loading}
                                     name={`options.${opt.key}`}
-                                    ref={register}
+                                    {...register(`options.${opt.key}`)}
                                   >
                                     <option value={""} disabled>
                                       Select an option
@@ -403,7 +407,7 @@ export default function Page(props) {
                                     type="password"
                                     placeholder={opt.placeholder}
                                     name={`options.${opt.key}`}
-                                    ref={register}
+                                    {...register(`options.${opt.key}`)}
                                   />
                                   <Form.Text className="text-muted">
                                     {opt.description}
@@ -423,7 +427,7 @@ export default function Page(props) {
                                     disabled={loading}
                                     placeholder={opt.placeholder}
                                     name={`options.${opt.key}`}
-                                    ref={register}
+                                    {...register(`options.${opt.key}`)}
                                   />
                                   <Form.Text className="text-muted">
                                     {opt.description}
