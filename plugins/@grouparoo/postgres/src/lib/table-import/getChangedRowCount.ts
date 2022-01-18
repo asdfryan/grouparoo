@@ -5,6 +5,7 @@ import format from "pg-format";
 import { makeWhereClause } from "./util";
 
 export const getChangedRowCount: GetChangedRowCountMethod = async ({
+  incremental,
   connection,
   tableName,
   matchConditions,
@@ -14,7 +15,9 @@ export const getChangedRowCount: GetChangedRowCountMethod = async ({
   let query = `SELECT COUNT(*) AS __count FROM %I`;
   params.push(tableName);
 
-  query += await makeHighwaterWhereClause(highWaterMarkCondition, params);
+  if (incremental) {
+    query += await makeHighwaterWhereClause(highWaterMarkCondition, params);
+  }
 
   for (const [idx, condition] of matchConditions.entries()) {
     const filterClause = makeWhereClause(condition, params);
