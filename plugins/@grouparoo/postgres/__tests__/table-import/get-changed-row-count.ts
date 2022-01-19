@@ -25,6 +25,8 @@ describe("postgres/table/scheduleOptions", () => {
     client = setupResp.client;
   });
 
+  afterAll(async () => afterData());
+
   beforeAll(async () => {
     app = await helper.factories.app({
       name: "PG",
@@ -51,6 +53,7 @@ describe("postgres/table/scheduleOptions", () => {
       appOptions,
       appId: app.id,
       tableName: usersTableName,
+      incremental: true,
       matchConditions: [],
       highWaterMarkCondition: {
         columnName: "stamp",
@@ -68,6 +71,7 @@ describe("postgres/table/scheduleOptions", () => {
       appOptions,
       appId: app.id,
       tableName: usersTableName,
+      incremental: true,
       matchConditions: [
         {
           columnName: "id",
@@ -88,6 +92,24 @@ describe("postgres/table/scheduleOptions", () => {
     });
 
     expect(rowCount).toBe(2);
+  });
+
+  test("highwatermark is ignored when not incremental", async () => {
+    const rowCount = await getChangedRowCount({
+      connection: client,
+      appOptions,
+      appId: app.id,
+      tableName: usersTableName,
+      incremental: false,
+      matchConditions: [],
+      highWaterMarkCondition: {
+        columnName: "stamp",
+        value: new Date("2020-02-05"),
+        filterOperation: FilterOperation.GreaterThan,
+      },
+    });
+
+    expect(rowCount).toBe(10);
   });
 
   test("gets the percentage complete of a run", async () => {
