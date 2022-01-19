@@ -59,7 +59,10 @@ const Page: NextPage<Props & InjectedProps> = ({
   ...props
 }) => {
   const router = useRouter();
-  const { execApi } = UseApi(props, errorHandler);
+  const { execApi } = useMemo(
+    () => UseApi(props, errorHandler),
+    [errorHandler, props]
+  );
   const { handleSubmit, register } = useForm();
   const [preview, setPreview] = useState([]);
   const [loading, setLoading] = useState(false);
