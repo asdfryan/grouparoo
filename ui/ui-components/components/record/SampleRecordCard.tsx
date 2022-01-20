@@ -139,7 +139,7 @@ const SampleRecordCard: React.FC<SampleRecordCardProps> = ({
       }
     } else {
       ({ record, groups, destinations } = await client
-        .action<Actions.RecordsList>("get", "/records", {
+        .request<Actions.RecordsList>("get", "/records", {
           limit: 25,
           offset: 0,
           modelId,
@@ -295,7 +295,7 @@ const SampleRecordCard: React.FC<SampleRecordCardProps> = ({
 
   const importRecord = async () => {
     setImporting(true);
-    const response = await client.action<Actions.RecordImport>(
+    const response = await client.request<Actions.RecordImport>(
       "post",
       `/record/${record.id}/import`
     );
