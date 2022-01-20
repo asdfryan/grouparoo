@@ -117,8 +117,6 @@ const Page: NextPage<Props> = ({
       {
         options: Object.keys(source.options).length > 0 ? source.options : null,
       },
-      null,
-      null,
       false
     );
     setPreviewLoading(false);
@@ -248,8 +246,6 @@ const Page: NextPage<Props> = ({
       "get",
       `/source/${sourceId}/connectionOptions`,
       { options: source.options },
-      null,
-      null,
       false
     );
     if (response?.options) setConnectionOptions(response.options);
