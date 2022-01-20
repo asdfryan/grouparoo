@@ -25,6 +25,7 @@ import FormMappingSelector from "../../../../../components/source/FormMappingSel
 import { createSchedule } from "../../../../../components/schedule/Add";
 import ManagedCard from "../../../../../components/lib/ManagedCard";
 import { grouparooUiEdition } from "../../../../../utils/uiEdition";
+import { useApi } from "../../../../../contexts/api";
 
 interface FormData {
   mapping?: {
@@ -52,7 +53,7 @@ const Page: NextPage<Props> = ({
   ...props
 }) => {
   const router = useRouter();
-  const { execApi } = UseApi(undefined, errorHandler);
+  const { client } = useApi();
   const { handleSubmit, register } = useForm();
   const [preview, setPreview] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -111,13 +112,13 @@ const Page: NextPage<Props> = ({
     }
 
     setPreviewLoading(true);
-    const response: Actions.SourcePreview = await execApi(
+    const response: Actions.SourcePreview = await client.action(
       "get",
       `/source/${sourceId}/preview`,
       {
         options: Object.keys(source.options).length > 0 ? source.options : null,
       },
-      false
+      { useCache: false }
     );
     setPreviewLoading(false);
     if (response?.preview) {
@@ -139,10 +140,14 @@ const Page: NextPage<Props> = ({
     // Unique Property is being created and need to bootstrap?
     if (isBootstrappingUniqueProperty) {
       const bootstrapResponse: Actions.SourceBootstrapUniqueProperty =
-        await execApi("post", `/source/${source.id}/bootstrapUniqueProperty`, {
-          mappedColumn: data.mapping.sourceColumn,
-          sourceOptions: source.options,
-        });
+        await client.action(
+          "post",
+          `/source/${source.id}/bootstrapUniqueProperty`,
+          {
+            mappedColumn: data.mapping.sourceColumn,
+            sourceOptions: source.options,
+          }
+        );
 
       if (bootstrapResponse?.property) {
         bootstrapSuccess = true;
@@ -175,7 +180,7 @@ const Page: NextPage<Props> = ({
         ? undefined
         : "ready";
 
-    const response = await execApi<Actions.SourceEdit>(
+    const response = await client.action<Actions.SourceEdit>(
       "put",
       `/source/${sourceId}`,
       { ...source, state, mapping }
@@ -190,7 +195,7 @@ const Page: NextPage<Props> = ({
         isBootstrappingUniqueProperty &&
         response.source.state === "ready"
       ) {
-        await execApi<Actions.SourceGenerateSampleRecords>(
+        await client.action<Actions.SourceGenerateSampleRecords>(
           "post",
           `/source/${sourceId}/generateSampleRecords`,
           { id: sourceId }
@@ -201,7 +206,7 @@ const Page: NextPage<Props> = ({
       if (scheduleCount === 0 && response.source.scheduleAvailable) {
         const createdScheduleAndRedirected = await createSchedule({
           router,
-          execApi,
+          client,
           source: response.source,
           setLoading: () => {},
         });
@@ -221,16 +226,13 @@ const Page: NextPage<Props> = ({
       }
     }
 
-    const { properties, examples } = await execApi<Actions.PropertiesList>(
-      "get",
-      `/properties`,
-      {
+    const { properties, examples } =
+      await client.action<Actions.PropertiesList>("get", `/properties`, {
         unique: true,
         includeExamples: true,
         state: "ready",
         modelId: source?.modelId,
-      }
-    );
+      });
 
     setProperties(properties);
     setPropertyExamples(examples);
@@ -242,11 +244,11 @@ const Page: NextPage<Props> = ({
 
   async function loadOptions() {
     setLoadingOptions(true);
-    const response: Actions.SourceConnectionOptions = await execApi(
+    const response: Actions.SourceConnectionOptions = await client.action(
       "get",
       `/source/${sourceId}/connectionOptions`,
       { options: source.options },
-      false
+      { useCache: false }
     );
     if (response?.options) setConnectionOptions(response.options);
     setLoadingOptions(false);
@@ -255,7 +257,7 @@ const Page: NextPage<Props> = ({
   async function handleDelete() {
     if (window.confirm("are you sure?")) {
       setLoading(true);
-      const { success }: Actions.SourceDestroy = await execApi(
+      const { success }: Actions.SourceDestroy = await client.action(
         "delete",
         `/source/${sourceId}`
       );
